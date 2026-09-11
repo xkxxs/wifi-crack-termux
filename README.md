@@ -36,12 +36,12 @@ wifi-crack -t <SSID> [BSSID] [encryption] [dictionary]
 ### Quick Mode
 
 ```bash
-wifi-crack -t MINI 50:88:11:7b:b5:3c wpa2 ~/dict.txt
+wifi-crack -t MINI 50:88:11:7b:b5:3c wpa2 ~/幻影WiFi字典.txt
 ```
 
 ## Dictionary
 
-Place your dictionary file at `~/dict.txt` or specify a custom path.
+Place your dictionary file at `~/幻影WiFi字典.txt` or specify a custom path.
 
 Supports any text file with one password per line.
 
@@ -55,8 +55,15 @@ cd wifi-crack-termux
 # Make executable
 chmod +x wifi-crack.sh
 
-# Create shortcut (optional)
+# Copy to home directory
 cp wifi-crack.sh ~/wifi-crack.sh
+
+# Create shortcut (optional, allows running 'wifi-crack' from anywhere)
+sudo tee /data/data/com.termux/files/usr/bin/wifi-crack > /dev/null << 'EOF'
+#!/bin/bash
+exec sudo /data/data/com.termux/files/home/wifi-crack.sh "$@"
+EOF
+sudo chmod +x /data/data/com.termux/files/usr/bin/wifi-crack
 ```
 
 ## Notes
