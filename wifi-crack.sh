@@ -151,7 +151,7 @@ select_target() {
 }
 
 # ── 字典管理 ──
-DICT_FILE="$REAL_HOME/dict.txt"
+DICT_FILE="$REAL_HOME/幻影WiFi字典.txt"
 
 check_dict() {
     if [[ ! -f "$DICT_FILE" ]]; then
