@@ -1,0 +1,4 @@
+wifi-results/
+.wifi-crack-tmp/
+*.txt
+!README.md
