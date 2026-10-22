@@ -9,6 +9,59 @@
 > **仅限测试你自己拥有或已获得授权的网络。** 对他人网络逐个试密码，在《网络安全法》第 27 条
 > 和《刑法》第 285 条范围内。
 
+## 一行命令安装
+
+```bash
+bash <(curl -fsSL https://cdn.jsdelivr.net/gh/xkxxs/wifi-crack-termux@master/install.sh)
+```
+
+国内网络拉不动 `raw.githubusercontent.com` 时用上面这条（jsDelivr CDN）；如果 CDN 也不通，再试：
+
+```bash
+# 原始地址（需要能访问 raw.githubusercontent.com）
+bash <(curl -fsSL https://raw.githubusercontent.com/xkxxs/wifi-crack-termux/master/install.sh)
+
+# gh-proxy 镜像
+bash <(curl -fsSL https://gh-proxy.com/https://raw.githubusercontent.com/xkxxs/wifi-crack-termux/master/install.sh)
+```
+
+装完直接输入 `wifi-crack` 即可。**不需要 sudo**，安装器只写 `$PREFIX`（Termux 自己的目录）和 `$HOME`。
+
+### 安装器做了什么
+
+| 步骤 | 说明 |
+| --- | --- |
+| 环境检查 | 确认在 Termux 里、`$PREFIX/bin` 可写 |
+| 获取脚本 | 从仓库目录运行时用本地文件，管道安装时按 CDN → raw → gh-proxy 顺序下载，并做 `bash -n` 语法校验 |
+| 安装程序 | 原子替换到 `$PREFIX/share/wifi-crack/wifi-crack.sh`（先写临时文件再 `mv`，中断不会留下半个脚本） |
+| 生成命令 | `$PREFIX/bin/wifi-crack`，内容是 `exec <程序路径> "$@"`，不依赖环境变量 |
+| 安装字典 | 若 `~/幻影WiFi字典.txt` 不存在则一并安装；`--no-dict` 可跳过 |
+| 环境提示 | 检查 `cmd` 是否可用、`su`/`sudo` 是否存在，只提示不阻断 |
+| 卸载 | `--uninstall` 删除程序与命令，保留 `~/wifi-results/` 和字典 |
+
+重复运行安装器是安全的：程序内容一致会跳过覆盖，你改过的 `$PREFIX/bin/wifi-crack` 会先备份成 `.bak`。
+
+## 手动安装
+
+```bash
+git clone https://github.com/xkxxs/wifi-crack-termux.git
+cd wifi-crack-termux
+bash install.sh            # 或 bash install.sh --no-dict
+```
+
+不想用安装器的话，最小可用方式：
+
+```bash
+cp wifi-crack.sh ~/wifi-crack.sh && chmod +x ~/wifi-crack.sh
+~/wifi-crack.sh            # 直接跑，脚本会自己 su 提权
+```
+
+## 卸载
+
+```bash
+bash <(curl -fsSL https://cdn.jsdelivr.net/gh/xkxxs/wifi-crack-termux@master/install.sh) --uninstall
+```
+
 ## 原理
 
 ```bash
@@ -23,29 +76,7 @@ cmd wifi connect-network <SSID> <open|owe|wpa2|wpa3> <密码> [-b <BSSID>]
 
 - 已 root 的 Android 11+（需要 `cmd wifi`，Magisk / KernelSU 均可）
 - Termux + bash
-- 不需要 `iw`（v2 里的依赖是多余的，v3 已移除）
-
-## 安装
-
-```bash
-git clone https://github.com/xkxxs/wifi-crack-termux.git
-cd wifi-crack-termux
-chmod +x wifi-crack.sh
-cp wifi-crack.sh ~/wifi-crack.sh
-```
-
-创建快捷命令（脚本会自己用 `su` 提权，**不要**用 `sudo` 包一层，否则 PATH 里可能没有 Termux 的工具）：
-
-```bash
-mkdir -p "$PREFIX/bin"
-cat > "$PREFIX/bin/wifi-crack" <<'EOF'
-#!/data/data/com.termux/files/usr/bin/bash
-exec /data/data/com.termux/files/home/wifi-crack.sh "$@"
-EOF
-chmod +x "$PREFIX/bin/wifi-crack"
-```
-
-可选：把字典放到 `~/幻影WiFi字典.txt`（仓库里有同名文件，直接 `cp 幻影WiFi字典.txt ~/`）。
+- 不需要 `iw`，也不需要 proot（v2 里的 `iw` 依赖是多余的，v3 已移除）
 
 ## 用法
 
@@ -82,14 +113,14 @@ wifi-crack -t MINI 50:88:11:7b:b5:3c wpa2 ~/幻影WiFi字典.txt
 |---|---|
 | WEP 网络永远连不上（`cmd wifi` 只支持 open/owe/wpa2/wpa3），错误被 `\|\| true` 吞掉，白跑整个字典 | 扫描时标记 `wep`，选中直接拒绝；`-t` 传入 wep 也报错 |
 | `-t` 模式的字典默认路径和 `~/幻影WiFi字典.txt` 不一致 | 统一为 `~/幻影WiFi字典.txt`，找不到时回退 `~/wifi-dicts/` |
-| 安装文档没说要复制字典，开箱即报错 | 文档已补 |
+| 安装文档没说要复制字典，开箱即报错 | 安装器自动装字典，文档已补 |
 | 依赖 `iw` 但从未使用；root 下 `pkg install` 会出问题 | 移除 `iw`，改为检测 `cmd wifi` 是否真的可用 |
 | `sudo` 后 PATH 没有 `/system/bin`，`cmd` 被误判缺失 | PATH 追加系统目录（追加而非前置，避免 toybox 覆盖 Termux 的 GNU 工具） |
 | SSID 含空格被 `awk $5` 截断，中文名/带空格名连错目标 | 重写解析：跳过前 4 列，再按"标志块"剥离末尾 `[WPA2-PSK-CCMP][ESS]`，保留 SSID 里的空格和方括号 |
 | 同一 SSID 多 BSSID 去重时随机保留，可能选到弱信号 | 按 RSSI 保留最强的一条，并按信号降序显示 |
 | 空字典除零崩溃 | `check_dict` 直接拒绝空字典 |
-| 字典最后一行没有换行符被漏掉 | `while read || [[ -n $password ]]` |
-| 清理时 `grep "$ssid"` 用的子串/正则匹配，会拿到错误网络 ID，**误删你已保存的 WiFi** | 改为按 SSID 精确比较 + 启动前快照基线 ID，只删本次新增的 |
+| 字典最后一行没有换行符被漏掉 | `while read \|\| [[ -n $password ]]` |
+| 清理时 `grep "$ssid"` 用的子串/正则匹配，会拿到错误网络 ID，**误删你已保存的 WiFi** | 改为按 SSID 精确比较 + 启动前快照基线 ID，只删本次新增的；快照失败直接中止 |
 | `disconnect_wifi` 会把你当前网络 `forget-network` 掉（等于删掉自家 WiFi 密码） | 整段删除；发现目标就是当前连接的网络时直接提示无需测试 |
 | Ctrl-C 中断留下半成品配置和临时目录 | `trap INT/TERM/EXIT` 统一清理 |
 | 进度行回显明文密码 | 默认打码，只显示长度 |
@@ -112,6 +143,10 @@ Android 会优先保持当前已连接的网络。需要时在系统 WiFi 设置
 
 **密码对了但显示没匹配**
 某些机型 `connect-network` 后需要更长时间完成 DHCP。把脚本顶部 `CONNECT_POLLS` 调大（如 20 = 10 秒）。
+
+**`wifi-crack: command not found`**
+`$PREFIX/bin` 不在当前 PATH，或安装时用错了 `PREFIX`。重开 Termux 再试，
+也可以直接 `$PREFIX/bin/wifi-crack`。
 
 ## 许可
 
