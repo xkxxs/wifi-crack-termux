@@ -23,7 +23,10 @@ BIN_DIR="$PREFIX_DIR/bin"
 TARGET="$SHARE_DIR/wifi-crack.sh"
 WRAPPER="$BIN_DIR/wifi-crack"
 HOME_DIR="${HOME:-/data/data/com.termux/files/home}"
-DICT_DST="$HOME_DIR/幻影WiFi字典.txt"
+DATA_DIR="$HOME_DIR/.wifi-crack"
+DICT_DIR="$DATA_DIR/dict"
+DICT_DST="$DICT_DIR/幻影WiFi字典.txt"
+LEGACY_DICT="$HOME_DIR/幻影WiFi字典.txt"
 
 # 字典文件名需要 URL 编码才能从 raw 拉取
 DICT_PATH="%E5%B9%BB%E5%BD%B1WiFi%E5%AD%97%E5%85%B8.txt"
@@ -48,7 +51,7 @@ wifi-crack-termux 安装器
 用法:
   bash install.sh               安装（默认同时安装字典，若还没有）
   bash install.sh --no-dict     安装但不下载字典
-  bash install.sh --uninstall   卸载（保留 ~/wifi-results 和字典）
+  bash install.sh --uninstall   卸载（保留 ~/.wifi-crack 里的字典和结果）
   bash install.sh -y            不再询问（当前没有交互，留作兼容）
   bash install.sh -h            显示帮助
 
@@ -163,8 +166,16 @@ EOF
 
     # 字典（可选，已存在则不覆盖）
     if (( WITH_DICT )); then
+        mkdir -p "$DICT_DIR"
         if [[ -f "$DICT_DST" ]]; then
             step "字典已存在，保留: $DICT_DST"
+        elif [[ -f "$LEGACY_DICT" ]]; then
+            # 旧版把字典放在 home 根目录，顺手收进来
+            if mv -f "$LEGACY_DICT" "$DICT_DST" 2>/dev/null; then
+                info "已把旧字典迁移到: $DICT_DST"
+            else
+                warn "旧字典迁移失败，仍保留在 $LEGACY_DICT"
+            fi
         elif [[ -n "$SELF_DIR" && -f "$SELF_DIR/幻影WiFi字典.txt" ]]; then
             cp "$SELF_DIR/幻影WiFi字典.txt" "$DICT_DST"
             info "已安装字典: $DICT_DST"
@@ -226,7 +237,8 @@ do_uninstall() {
     rm -rf "$SHARE_DIR"
     info "已移除命令和程序"
     step "保留用户数据（如需删除请手动操作）："
-    echo -e "    $DICT_DST"
+    echo -e "    $DATA_DIR/            # 字典 dict/、结果 results/"
+    echo -e "    $LEGACY_DICT"
     echo -e "    $HOME_DIR/wifi-results/"
 }
 

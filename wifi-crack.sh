@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # ============================================================
-# WiFi 字典测试工具 v3.0 (Termux + Root)
+# WiFi 字典测试工具 v3.1 (Termux + Root)
 #
 # 原理: 用 cmd wifi connect-network 逐个尝试字典中的密码。
 #       这不是破解 WPA 加密，只是"在线猜密码"，速度受限于
@@ -23,10 +23,17 @@ CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 # ── 全局变量 ──
 # 固定路径，避免 sudo 下 HOME 变化
 REAL_HOME="/data/data/com.termux/files/home"
-DICT_DIR="$REAL_HOME/wifi-dicts"
-RESULT_DIR="$REAL_HOME/wifi-results"
-TEMP_DIR="$REAL_HOME/.wifi-crack-tmp"
-DICT_FILE="$REAL_HOME/幻影WiFi字典.txt"
+# 所有数据集中在这个目录下，不再往 home 根目录散落文件
+DATA_DIR="$REAL_HOME/.wifi-crack"
+DICT_DIR="$DATA_DIR/dict"
+RESULT_DIR="$DATA_DIR/results"
+TEMP_DIR="$DATA_DIR/tmp"
+DICT_FILE="$DICT_DIR/幻影WiFi字典.txt"
+
+# 旧版（v3.0 及更早）布局，仅用于自动迁移
+LEGACY_DICT="$REAL_HOME/幻影WiFi字典.txt"
+LEGACY_DICT_DIR="$REAL_HOME/wifi-dicts"
+LEGACY_RESULT_DIR="$REAL_HOME/wifi-results"
 
 CONNECT_POLLS=10     # 每次尝试轮询次数，10 × 0.5s = 5s
 SCAN_WAIT=12         # 等扫描结果的最长秒数
@@ -70,8 +77,44 @@ check_env() {
 
 setup_dirs() {
     # 每次启动重建临时目录，避免上次被杀掉留下的陈旧基线
+    mkdir -p "$DICT_DIR" "$RESULT_DIR"
     rm -rf "$TEMP_DIR"
-    mkdir -p "$DICT_DIR" "$RESULT_DIR" "$TEMP_DIR"
+    mkdir -p "$TEMP_DIR"
+    migrate_old_layout
+}
+
+# 把旧版散落在 home 根目录的文件收进 ~/.wifi-crack/
+migrate_old_layout() {
+    local f="" files=()
+
+    if [[ ! -f "$DICT_FILE" ]]; then
+        [[ -f "$LEGACY_DICT" ]] && f="$LEGACY_DICT"
+        if [[ -z "$f" && -f "$LEGACY_DICT_DIR/幻影WiFi字典.txt" ]]; then
+            f="$LEGACY_DICT_DIR/幻影WiFi字典.txt"
+        fi
+        if [[ -n "$f" ]]; then
+            if mv -f "$f" "$DICT_FILE" 2>/dev/null; then
+                info "已把字典迁移到 $DICT_FILE"
+            else
+                warn "字典迁移失败，继续使用旧路径: $f"
+                DICT_FILE="$f"
+            fi
+        fi
+    fi
+
+    if [[ -d "$LEGACY_RESULT_DIR" ]]; then
+        shopt -s nullglob
+        files=("$LEGACY_RESULT_DIR"/*.txt)
+        shopt -u nullglob
+        if (( ${#files[@]} > 0 )); then
+            if mv -f "${files[@]}" "$RESULT_DIR/" 2>/dev/null; then
+                info "已把 ${#files[@]} 条历史结果迁移到 $RESULT_DIR"
+            fi
+        fi
+        rmdir "$LEGACY_RESULT_DIR" 2>/dev/null || true
+    fi
+
+    rmdir "$LEGACY_DICT_DIR" 2>/dev/null || true
 }
 
 # ── 解析 list-networks ──
@@ -244,12 +287,8 @@ select_target() {
 # ── 字典 ──
 check_dict() {
     if [[ ! -f "$DICT_FILE" ]]; then
-        if [[ -f "$DICT_DIR/幻影WiFi字典.txt" ]]; then
-            DICT_FILE="$DICT_DIR/幻影WiFi字典.txt"
-        else
-            die "字典文件不存在: $DICT_FILE
+        die "字典文件不存在: $DICT_FILE
     请把字典放到该路径，或用 -t <SSID> [BSSID] [加密] <字典路径> 指定"
-        fi
     fi
     DICT_TOTAL=$(awk 'END { print NR }' "$DICT_FILE")
     (( DICT_TOTAL > 0 )) || die "字典是空的: $DICT_FILE"
@@ -429,7 +468,7 @@ show_banner() {
     echo ""
     echo -e "${CYAN}${BOLD}"
     echo "  ╔════════════════════════════════════════════╗"
-    echo "  ║     WiFi 字典测试工具 v3.0                 ║"
+    echo "  ║     WiFi 字典测试工具 v3.1                 ║"
     echo "  ║     Termux + Root + cmd wifi               ║"
     echo "  ╚════════════════════════════════════════════╝"
     echo -e "${NC}"
@@ -488,6 +527,7 @@ usage() {
   --forget-on-success         成功后删除该网络配置（默认保留并保持连接）
 
 说明:
+  - 数据和字典都在 ~/.wifi-crack/ 下（dict/ results/ tmp/），不往 home 根目录散落文件。
   - 加密类型只支持 open/owe/wpa2/wpa3；WEP 无法通过 cmd wifi 连接。
   - 脚本只会删除"本次运行新建"的网络配置，不会动你已保存的 WiFi。
   - 仅限测试你自己拥有或已获授权的网络。

@@ -35,9 +35,9 @@ bash <(curl -fsSL https://raw.githubusercontent.com/xkxxs/wifi-crack-termux/mast
 | 获取脚本 | 从仓库目录运行时用本地文件，管道安装时按 gh-proxy → CDN → raw 顺序下载，并做 `bash -n` 语法校验 |
 | 安装程序 | 原子替换到 `$PREFIX/share/wifi-crack/wifi-crack.sh`（先写临时文件再 `mv`，中断不会留下半个脚本） |
 | 生成命令 | `$PREFIX/bin/wifi-crack`，内容是 `exec <程序路径> "$@"`，不依赖环境变量 |
-| 安装字典 | 若 `~/幻影WiFi字典.txt` 不存在则一并安装；`--no-dict` 可跳过 |
+| 安装字典 | 若 `~/.wifi-crack/dict/幻影WiFi字典.txt` 不存在则一并安装；`--no-dict` 可跳过 |
 | 环境提示 | 检查 `cmd` 是否可用、`su`/`sudo` 是否存在，只提示不阻断 |
-| 卸载 | `--uninstall` 删除程序与命令，保留 `~/wifi-results/` 和字典 |
+| 卸载 | `--uninstall` 删除程序与命令，保留 `~/.wifi-crack/` 里的字典和结果 |
 
 重复运行安装器是安全的：程序内容一致会跳过覆盖，你改过的 `$PREFIX/bin/wifi-crack` 会先备份成 `.bak`。
 
@@ -49,11 +49,12 @@ cd wifi-crack-termux
 bash install.sh            # 或 bash install.sh --no-dict
 ```
 
-不想用安装器的话，最小可用方式：
+不想用安装器的话，最小可用方式（不要往 `~` 根目录丢文件，数据会自动收进 `~/.wifi-crack/`）：
 
 ```bash
-cp wifi-crack.sh ~/wifi-crack.sh && chmod +x ~/wifi-crack.sh
-~/wifi-crack.sh            # 直接跑，脚本会自己 su 提权
+mkdir -p "$PREFIX/share/wifi-crack"
+cp wifi-crack.sh "$PREFIX/share/wifi-crack/"
+"$PREFIX/share/wifi-crack/wifi-crack.sh"          # 直接跑，脚本会自己 su 提权
 ```
 
 ## 卸载
@@ -99,12 +100,27 @@ wifi-crack -h              # 帮助
 快速模式示例：
 
 ```bash
-wifi-crack -t MINI 50:88:11:7b:b5:3c wpa2 ~/幻影WiFi字典.txt
+wifi-crack -t MINI 50:88:11:7b:b5:3c wpa2 ~/.wifi-crack/dict/幻影WiFi字典.txt
 ```
+
+## 数据目录
+
+安装后所有数据都在 `~/.wifi-crack/` 下，不再往 home 根目录散落文件：
+
+```
+~/.wifi-crack/
+├── dict/
+│   └── 幻影WiFi字典.txt     # 默认字典，也可以放自己的其他字典
+├── results/                # 命中的结果，每个 <SSID>_<时间>.txt，权限 600
+└── tmp/                    # 运行中的临时文件，退出/中断自动清理
+```
+
+从 v3.0 及更早版本升级时，脚本和安装器都会自动把旧的 `~/幻影WiFi字典.txt`、
+`~/wifi-results/`、`~/wifi-dicts/` 迁移进来，不需要手动搬。
 
 ## 结果
 
-- 保存在 `~/wifi-results/<SSID>_<时间>.txt`，权限 600（仅自己可读）。
+- 保存在 `~/.wifi-crack/results/<SSID>_<时间>.txt`，权限 600（仅自己可读）。
 - 成功时默认保留网络配置，手机会保持连接；不想要就加 `--forget-on-success`。
 
 ## v3 修了什么
@@ -112,7 +128,8 @@ wifi-crack -t MINI 50:88:11:7b:b5:3c wpa2 ~/幻影WiFi字典.txt
 | 问题 | 处理 |
 |---|---|
 | WEP 网络永远连不上（`cmd wifi` 只支持 open/owe/wpa2/wpa3），错误被 `\|\| true` 吞掉，白跑整个字典 | 扫描时标记 `wep`，选中直接拒绝；`-t` 传入 wep 也报错 |
-| `-t` 模式的字典默认路径和 `~/幻影WiFi字典.txt` 不一致 | 统一为 `~/幻影WiFi字典.txt`，找不到时回退 `~/wifi-dicts/` |
+| `-t` 模式的字典默认路径和文档不一致 | 统一为 `~/.wifi-crack/dict/幻影WiFi字典.txt` |
+| 字典、结果、临时目录散落在 home 根目录 | 统一收进 `~/.wifi-crack/`，并自动迁移旧布局 |
 | 安装文档没说要复制字典，开箱即报错 | 安装器自动装字典，文档已补 |
 | 依赖 `iw` 但从未使用；root 下 `pkg install` 会出问题 | 移除 `iw`，改为检测 `cmd wifi` 是否真的可用 |
 | `sudo` 后 PATH 没有 `/system/bin`，`cmd` 被误判缺失 | PATH 追加系统目录（追加而非前置，避免 toybox 覆盖 Termux 的 GNU 工具） |
