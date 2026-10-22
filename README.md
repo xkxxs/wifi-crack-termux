@@ -12,17 +12,17 @@
 ## 一行命令安装
 
 ```bash
-bash <(curl -fsSL https://cdn.jsdelivr.net/gh/xkxxs/wifi-crack-termux@master/install.sh)
+bash <(curl -fsSL https://gh-proxy.com/https://raw.githubusercontent.com/xkxxs/wifi-crack-termux/master/install.sh)
 ```
 
-国内网络拉不动 `raw.githubusercontent.com` 时用上面这条（jsDelivr CDN）；如果 CDN 也不通，再试：
+上面这条走 **gh-proxy** 镜像（和安装器内部的优先顺序一致）。如果它也拉不动，依次换用 jsDelivr 和原始地址：
 
 ```bash
+# jsDelivr CDN
+bash <(curl -fsSL https://cdn.jsdelivr.net/gh/xkxxs/wifi-crack-termux@master/install.sh)
+
 # 原始地址（需要能访问 raw.githubusercontent.com）
 bash <(curl -fsSL https://raw.githubusercontent.com/xkxxs/wifi-crack-termux/master/install.sh)
-
-# gh-proxy 镜像
-bash <(curl -fsSL https://gh-proxy.com/https://raw.githubusercontent.com/xkxxs/wifi-crack-termux/master/install.sh)
 ```
 
 装完直接输入 `wifi-crack` 即可。**不需要 sudo**，安装器只写 `$PREFIX`（Termux 自己的目录）和 `$HOME`。
@@ -32,7 +32,7 @@ bash <(curl -fsSL https://gh-proxy.com/https://raw.githubusercontent.com/xkxxs/w
 | 步骤 | 说明 |
 | --- | --- |
 | 环境检查 | 确认在 Termux 里、`$PREFIX/bin` 可写 |
-| 获取脚本 | 从仓库目录运行时用本地文件，管道安装时按 CDN → raw → gh-proxy 顺序下载，并做 `bash -n` 语法校验 |
+| 获取脚本 | 从仓库目录运行时用本地文件，管道安装时按 gh-proxy → CDN → raw 顺序下载，并做 `bash -n` 语法校验 |
 | 安装程序 | 原子替换到 `$PREFIX/share/wifi-crack/wifi-crack.sh`（先写临时文件再 `mv`，中断不会留下半个脚本） |
 | 生成命令 | `$PREFIX/bin/wifi-crack`，内容是 `exec <程序路径> "$@"`，不依赖环境变量 |
 | 安装字典 | 若 `~/幻影WiFi字典.txt` 不存在则一并安装；`--no-dict` 可跳过 |
@@ -59,7 +59,7 @@ cp wifi-crack.sh ~/wifi-crack.sh && chmod +x ~/wifi-crack.sh
 ## 卸载
 
 ```bash
-bash <(curl -fsSL https://cdn.jsdelivr.net/gh/xkxxs/wifi-crack-termux@master/install.sh) --uninstall
+bash <(curl -fsSL https://gh-proxy.com/https://raw.githubusercontent.com/xkxxs/wifi-crack-termux/master/install.sh) --uninstall
 ```
 
 ## 原理

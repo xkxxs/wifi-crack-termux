@@ -88,10 +88,10 @@ fetch() { # fetch <url> <输出文件>
     die "需要 curl 或 wget：pkg install curl"
 }
 
-# 按 CDN → raw → gh-proxy 顺序尝试
+# 按 gh-proxy → CDN → raw 顺序尝试
 download() { # download <仓库内路径> <输出文件>
     local path="$1" out="$2" base
-    for base in "$CDN_BASE" "$RAW_BASE" "$PROXY_BASE"; do
+    for base in "$PROXY_BASE" "$CDN_BASE" "$RAW_BASE"; do
         step "下载 ${base}/${path}"
         if fetch "$base/$path" "$out"; then
             [[ -s "$out" ]] || continue
@@ -215,7 +215,7 @@ do_install() {
     echo -e "  ${BOLD}wifi-crack -h${NC}       # 全部用法"
     echo ""
     echo -e "  仅限测试你自己拥有或已获得授权的网络。"
-    echo -e "  卸载： ${BOLD}bash <(curl -fsSL ${CDN_BASE}/install.sh) --uninstall${NC}"
+    echo -e "  卸载： ${BOLD}bash <(curl -fsSL ${PROXY_BASE}/install.sh) --uninstall${NC}"
 }
 
 do_uninstall() {
