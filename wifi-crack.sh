@@ -81,6 +81,21 @@ setup_dirs() {
     rm -rf "$TEMP_DIR"
     mkdir -p "$TEMP_DIR"
     migrate_old_layout
+    # 脚本以 root 运行，新建的目录/文件会属于 root，Termux 用户自己就读不了，
+    # 所以把数据目录的属主交还给 home 的所有者
+    fix_ownership "$DATA_DIR"
+}
+
+# home 的属主（Termux 应用 uid:gid），用于把 root 创建的文件交还回去
+HOME_OWNER=""
+detect_home_owner() {
+    HOME_OWNER=$(stat -c '%u:%g' "$REAL_HOME" 2>/dev/null || true)
+}
+
+fix_ownership() {
+    (( EUID == 0 )) || return 0
+    [[ -n "$HOME_OWNER" ]] || return 0
+    chown -R "$HOME_OWNER" "$@" 2>/dev/null || true
 }
 
 # 把旧版散落在 home 根目录的文件收进 ~/.wifi-crack/
@@ -392,6 +407,7 @@ run_crack() {
                 echo "密码: $password"
                 echo "时间: $(date)"
             } > "$result_file"
+            fix_ownership "$result_file"
             info "结果已保存: $result_file"
 
             if (( KEEP_ON_SUCCESS )); then
@@ -537,6 +553,7 @@ EOF
 main() {
     check_root "$@"
     check_env
+    detect_home_owner
     setup_dirs
     show_banner
 
